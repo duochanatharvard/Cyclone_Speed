@@ -74,7 +74,7 @@ end
 
 save([dir_load,'Geostationary_Projection_Irma_power_10.mat'],'POS','-v7.3')
 
-% *************************************************************************
+%% *************************************************************************
 % Convert back to lon lat grid
 % *************************************************************************
 clear;
@@ -99,6 +99,7 @@ spd = ds./dt * 3600 * 111;
 sx  = dx./dt * 3600 * 111;
 sy  = dy./dt * 3600 * 111;
 
+ct = 1:9000;
 time_irma = POS(1:9000,3);
 spd_irma = [spd(1:9000) sx(1:9000) sy(1:9000)];
 time_irma = round((time_irma - time_irma(1)) / 30);
@@ -107,7 +108,9 @@ spd_fft = interp1(time_irma,spd_irma,time_fft);
 
 spd_fft(find(isnan(spd_fft(:,1))),:) = repmat(nanmean(spd_fft,1),nnz(isnan(spd_fft(:,1))),1);
 a = fft(spd_fft(:,1));
+spd_fft = spd_fft - repmat(nanmean(spd_fft,1),size(spd_fft,1),1);
 
+%%
 figure(1); clf; hold on;
 [P,s,ci] = pmtmPH(spd_fft(:,1),1/2880,3,1);
 [P,s,ci] = pmtmPH(spd_fft(:,2),1/2880,3,1);
@@ -116,4 +119,55 @@ legend({'Great Circle','Dx','Dy'})
 grid on
 grid minor
 set(gca,'fontsize',16)
+
+fftPH(spd_fft(:,2),1/2880,'r'); 
+
+
+%% Some analysis srtipt from Peter
+clear;
+load Irma_tracks.mat;
+
+t = (t_irma - t_irma(1) + 30) / 86400;
+pl=find(t<3.5 | isnan(lon_irma) | isnan(lat_irma)); 
+t=t(pl);
+lon=lon_irma(pl);
+lat=lat_irma(pl);
+
+pl=find(~isnan(t) & ~isnan(lon) & ~isnan(lat) & t>0.5);
+t=t(pl);
+lon=lon(pl);
+lat=lat(pl);
+
+ti=t(1):min(diff(t)):t(end);
+loni=interp1(t,lon,ti);
+lati=interp1(t,lat,ti); 
+
+sm=101;
+lons=smoothPH(diff(loni),4*60*60/30)*110*1000/(24*60*60*diff(ti(1:2)));
+lats=smoothPH(diff(lati),4*60*60/30)*110*1000/(24*60*60*diff(ti(1:2)));
+
+figure(1); clf; hold on;
+plot(lon,lat,'k'); 
+plot(loni,lati,'r.'); 
+axis tight;
+figure(2); clf; hold on;
+fftPH(diff(loni),diff(ti(1:2))*24,'k'); 
+logPH;
+axis tight;
+
+figure(3); clf; hold on;
+fftPH(diff(lati),diff(ti(1:2))*24,'r'); 
+logPH;
+axis tight;
+
+figure(4); clf; 
+subplot(211);
+plot(ti(2:end),lons,'k');
+
+subplot(212); 
+plot(ti(2:end),lats,'k')
+axis tight;
+
+figure(5); clf;
+plot(lons,lats,'k');
 
